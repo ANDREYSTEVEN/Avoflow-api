@@ -107,6 +107,21 @@ def seed_db():
             db.commit()
             print("Default driver seeded: driver@avoflow.com / driver123")
             
+        # Clean up any invalid emails with spaces that were created previously
+        invalid_users = db.query(models.User).filter(models.User.email.like("% %")).all()
+        for u in invalid_users:
+            old_email = u.email
+            new_email = old_email.replace(" ", "")
+            # Check if new email already exists
+            exists = db.query(models.User).filter(models.User.email == new_email).first()
+            if exists:
+                # Re-link orders to the existing user and delete this invalid user
+                db.query(models.Order).filter(models.Order.client_id == u.id).update({models.Order.client_id: exists.id})
+                db.delete(u)
+            else:
+                u.email = new_email
+        db.commit()
+            
     except Exception as e:
         print(f"Error seeding database: {e}")
     finally:

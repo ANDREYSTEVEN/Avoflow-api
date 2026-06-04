@@ -53,8 +53,9 @@ def simulate_incoming(
     db.refresh(incoming_msg)
     
     # Process with the auto-responder rules
-    msg_clean = payload.message.lower().strip()
+    msg_clean = payload.message.lower().replace("*", "").strip()
     reply_text = ""
+
     order_created = False
     
     if any(keyword in msg_clean for keyword in ["hola", "catalogo", "aguacate", "precio", "menú", "menu"]):
@@ -75,16 +76,6 @@ def simulate_incoming(
                 "👉 Si deseas comprar, responde escribiendo *comprar* o *pedido*."
             )
             
-    elif "pedido" in msg_clean or "comprar" in msg_clean:
-        # Give formatting instructions
-        reply_text = (
-            "📝 *Instrucciones para pedido automático:*\n\n"
-            "Responde con este formato exacto:\n"
-            "*PEDIDO: [PRODUCTO_ID]:[CANTIDAD], [DIRECCIÓN]*\n\n"
-            "Ejemplo:\n"
-            "*PEDIDO: 1:3, Calle Falsa 123, apto 202*"
-        )
-        
     elif msg_clean.startswith("pedido:"):
         # Attempt to parse order: "pedido: ID:QTY, ADDRESS"
         # Regex to capture "pedido: \s* (\d+) \s* : \s* (\d+) \s* , \s* (.+)"
@@ -95,7 +86,8 @@ def simulate_incoming(
             address = match.group(3).strip()
             
             # Find or create a WhatsApp client user
-            email_dummy = f"{payload.phone}@whatsapp.com"
+            phone_clean = payload.phone.replace(" ", "")
+            email_dummy = f"{phone_clean}@whatsapp.com"
             user = db.query(models.User).filter(models.User.email == email_dummy).first()
             if not user:
                 # Create guest user
@@ -155,6 +147,16 @@ def simulate_incoming(
                 )
         else:
             reply_text = "❌ Formato incorrecto. Recuerda usar: *PEDIDO: ID:CANTIDAD, DIRECCIÓN* (ej. *PEDIDO: 1:2, Av. Principal #10*)."
+            
+    elif "pedido" in msg_clean or "comprar" in msg_clean:
+        # Give formatting instructions
+        reply_text = (
+            "📝 *Instrucciones para pedido automático:*\n\n"
+            "Responde con este formato exacto:\n"
+            "*PEDIDO: [PRODUCTO_ID]:[CANTIDAD], [DIRECCIÓN]*\n\n"
+            "Ejemplo:\n"
+            "*PEDIDO: 1:3, Calle Falsa 123, apto 202*"
+        )
             
     else:
         # Default fallback response
